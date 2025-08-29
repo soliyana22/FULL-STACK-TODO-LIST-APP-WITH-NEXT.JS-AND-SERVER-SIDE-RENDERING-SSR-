@@ -1,0 +1,10 @@
+[
+  {
+    "id": "welcome1",
+    "title": "New task",
+    "description": "This is a sample todo. You can view, edit, and delete it.",
+    "completed": true,
+    "createdAt": "2024-01-01T00:00:00.000Z",
+    "updatedAt": "2025-08-29T11:53:17.067Z"
+  }
+]

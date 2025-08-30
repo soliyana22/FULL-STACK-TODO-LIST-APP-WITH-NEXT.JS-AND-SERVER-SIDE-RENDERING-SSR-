@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import { getTodoById } from "../../../lib/todos";
@@ -13,59 +13,95 @@ export async function getServerSideProps({ params }) {
 
 export default function EditTodo({ todo }) {
   const router = useRouter();
-  const [title, setTitle] = useState(todo.title);
-  const [description, setDescription] = useState(todo.description || "");
-  const [completed, setCompleted] = useState(todo.completed);
-  const [submitting, setSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    title: todo.title,
+    description: todo.description || "",
+    completed: todo.completed,
+  });
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
-  async function handleSubmit(e) {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!title.trim()) return;
-    setSubmitting(true);
+    setIsSubmitting(true);
+    setError("");
+
     try {
-      const res = await fetch(`/api/todos/${todo.id}`, {
+      const response = await fetch(`/api/todos/${todo.id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ title, description, completed }),
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
       });
-      if (!res.ok) throw new Error("Failed to update");
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || "Failed to update todo");
+      }
+
+      // Redirect to the todo view page
       router.push(`/todos/${todo.id}`);
-    } catch (error) {
-      console.error("Update failed:", error);
-      alert("Failed to update todo");
+    } catch (err) {
+      setError(err.message);
     } finally {
-      setSubmitting(false);
+      setIsSubmitting(false);
     }
-  }
+  };
+
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
 
   return (
     <main className="min-h-screen bg-gray-50 text-gray-900">
-      <div className="max-w-3xl mx-auto p-4 sm:p-6 lg:p-8">
-        <Link href={`/todos/${todo.id}`} className="text-blue-600 hover:underline">← Back</Link>
+      <div className="max-w-2xl mx-auto p-4 sm:p-6 lg:p-8">
+        <Link href={`/todos/${todo.id}`} className="text-blue-600 hover:underline">
+          ← Back to Todo
+        </Link>
         
         <div className="bg-white rounded-lg shadow p-6 mt-4">
           <h1 className="text-2xl font-bold mb-6">Edit Todo</h1>
           
+          {error && (
+            <div className="mb-4 p-3 bg-red-100 border border-red-400 text-red-700 rounded">
+              {error}
+            </div>
+          )}
+          
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium mb-1">Title *</label>
+              <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-1">
+                Title *
+              </label>
               <input
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Todo title"
+                type="text"
+                id="title"
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
                 required
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter todo title"
               />
             </div>
             
             <div>
-              <label className="block text-sm font-medium mb-1">Description</label>
+              <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
+                Description
+              </label>
               <textarea
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                placeholder="Details (optional)"
+                id="description"
+                name="description"
+                value={formData.description}
+                onChange={handleChange}
+                rows={4}
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                placeholder="Enter todo description (optional)"
               />
             </div>
             
@@ -73,8 +109,9 @@ export default function EditTodo({ todo }) {
               <input
                 type="checkbox"
                 id="completed"
-                checked={completed}
-                onChange={(e) => setCompleted(e.target.checked)}
+                name="completed"
+                checked={formData.completed}
+                onChange={handleChange}
                 className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
               />
               <label htmlFor="completed" className="ml-2 block text-sm text-gray-900">
@@ -82,17 +119,18 @@ export default function EditTodo({ todo }) {
               </label>
             </div>
             
-            <div className="flex items-center gap-3 pt-4">
+            <div className="flex gap-3 pt-4">
               <button
                 type="submit"
-                disabled={submitting}
-                className="inline-flex items-center px-4 py-2 rounded-md bg-blue-600 text-white hover:bg-blue-700 disabled:opacity-50"
+                disabled={isSubmitting}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {submitting ? "Updating..." : "Update Todo"}
+                {isSubmitting ? "Saving..." : "Save Changes"}
               </button>
+              
               <Link
                 href={`/todos/${todo.id}`}
-                className="px-4 py-2 rounded-md border border-gray-300 hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
               >
                 Cancel
               </Link>

@@ -17,10 +17,10 @@ export default function handler(req, res) {
     }
 
     res.setHeader("Allow", ["GET", "POST"]);
-    return res.status(405).end("Method Not Allowed");
+    return res.status(405).json({ error: "Method Not Allowed" });
   } catch (error) {
     console.error("/api/todos error", error);
-    return res.status(500).json({ error: "Internal Server Error" });
+    return res.status(500).json({ error: "Internal Server Error", details: error.message });
   }
 }
 

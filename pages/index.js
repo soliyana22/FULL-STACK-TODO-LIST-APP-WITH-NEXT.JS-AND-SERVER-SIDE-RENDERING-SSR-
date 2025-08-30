@@ -1,6 +1,6 @@
 import Head from "next/head";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/router";
 import { readTodos } from "../lib/todos";
 
@@ -11,9 +11,49 @@ export async function getServerSideProps() {
 
 export default function Home({ initialTodos }) {
   const router = useRouter();
+  const [todos, setTodos] = useState(initialTodos);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [submitting, setSubmitting] = useState(false);
+
+  // Refresh todos when the page is focused (returning from edit page)
+  useEffect(() => {
+    const handleFocus = () => {
+      refreshTodos();
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        refreshTodos();
+      }
+    };
+
+    window.addEventListener('focus', handleFocus);
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      window.removeEventListener('focus', handleFocus);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, []);
+
+  // Update local state when initialTodos changes
+  useEffect(() => {
+    setTodos(initialTodos);
+  }, [initialTodos]);
+
+  // Function to refresh todos
+  const refreshTodos = async () => {
+    try {
+      const res = await fetch("/api/todos");
+      if (res.ok) {
+        const data = await res.json();
+        setTodos(data.todos);
+      }
+    } catch (err) {
+      console.error("Failed to refresh todos:", err);
+    }
+  };
 
   async function handleAdd(e) {
     e.preventDefault();
@@ -29,9 +69,10 @@ export default function Home({ initialTodos }) {
         const errorData = await res.json().catch(() => ({}));
         throw new Error(errorData.error || "Failed to add todo");
       }
+      const newTodo = await res.json();
+      setTodos([newTodo.todo, ...todos]); // Add to beginning of list
       setTitle("");
       setDescription("");
-      router.replace(router.asPath);
     } catch (error) {
       console.error("Add failed:", error);
       alert(error.message || "Failed to add todo");
@@ -41,13 +82,23 @@ export default function Home({ initialTodos }) {
   }
 
   async function handleDelete(id) {
+    if (!confirm("Are you sure you want to delete this todo?")) {
+      return;
+    }
+    
     try {
       const res = await fetch(`/api/todos/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
+        if (res.status === 404) {
+          // Todo was already deleted, remove from local state
+          setTodos(todos.filter(todo => todo.id !== id));
+          return;
+        }
         throw new Error(errorData.error || "Failed to delete todo");
       }
-      router.replace(router.asPath);
+      // Remove from local state
+      setTodos(todos.filter(todo => todo.id !== id));
     } catch (error) {
       console.error("Delete failed:", error);
       alert(error.message || "Failed to delete todo");
@@ -63,9 +114,18 @@ export default function Home({ initialTodos }) {
       });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
+        if (res.status === 404) {
+          // Todo was deleted, remove from local state
+          setTodos(todos.filter(todo => todo.id !== id));
+          return;
+        }
         throw new Error(errorData.error || "Failed to update todo");
       }
-      router.replace(router.asPath);
+      const updatedTodo = await res.json();
+      // Update local state
+      setTodos(todos.map(todo => 
+        todo.id === id ? updatedTodo.todo : todo
+      ));
     } catch (error) {
       console.error("Toggle failed:", error);
       alert(error.message || "Failed to update todo");
@@ -80,7 +140,15 @@ export default function Home({ initialTodos }) {
       </Head>
       <main className="min-h-screen bg-gray-50 text-gray-900">
         <div className="max-w-3xl mx-auto p-4 sm:p-6 lg:p-8">
-          <h1 className="text-2xl sm:text-3xl font-bold mb-6">Todo List</h1>
+          <div className="flex justify-between items-center mb-6">
+            <h1 className="text-2xl sm:text-3xl font-bold">Todo List</h1>
+            <button
+              onClick={refreshTodos}
+              className="px-3 py-1.5 rounded-md border border-gray-300 hover:bg-gray-50 text-sm"
+            >
+              Refresh
+            </button>
+          </div>
 
           <form onSubmit={handleAdd} className="bg-white rounded-lg shadow p-4 sm:p-6 mb-8 space-y-4">
             <div>
@@ -90,6 +158,7 @@ export default function Home({ initialTodos }) {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. Buy groceries"
+                required
               />
             </div>
             <div>
@@ -114,10 +183,10 @@ export default function Home({ initialTodos }) {
           </form>
 
           <ul className="space-y-3">
-            {initialTodos.length === 0 && (
+            {todos.length === 0 && (
               <li className="text-gray-600">No todos yet. Add your first one above.</li>
             )}
-            {initialTodos.map((todo) => (
+            {todos.map((todo) => (
               <li key={todo.id} className="bg-white rounded-lg shadow p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                 <div className="flex-1">
                   <div className="flex items-center gap-2">

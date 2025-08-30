@@ -25,18 +25,51 @@ export default function Home({ initialTodos }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ title, description }),
       });
-      if (!res.ok) throw new Error("Failed to add");
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to add todo");
+      }
       setTitle("");
       setDescription("");
       router.replace(router.asPath);
+    } catch (error) {
+      console.error("Add failed:", error);
+      alert(error.message || "Failed to add todo");
     } finally {
       setSubmitting(false);
     }
   }
 
   async function handleDelete(id) {
-    await fetch(`/api/todos/${id}`, { method: "DELETE" });
-    router.replace(router.asPath);
+    try {
+      const res = await fetch(`/api/todos/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to delete todo");
+      }
+      router.replace(router.asPath);
+    } catch (error) {
+      console.error("Delete failed:", error);
+      alert(error.message || "Failed to delete todo");
+    }
+  }
+
+  async function handleToggleComplete(id, currentStatus) {
+    try {
+      const res = await fetch(`/api/todos/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ completed: !currentStatus }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to update todo");
+      }
+      router.replace(router.asPath);
+    } catch (error) {
+      console.error("Toggle failed:", error);
+      alert(error.message || "Failed to update todo");
+    }
   }
 
   return (
@@ -86,12 +119,25 @@ export default function Home({ initialTodos }) {
             )}
             {initialTodos.map((todo) => (
               <li key={todo.id} className="bg-white rounded-lg shadow p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                <div>
-                  <Link href={`/todos/${todo.id}`} className="text-lg font-semibold hover:underline">
-                    {todo.title}
-                  </Link>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      checked={todo.completed}
+                      onChange={() => handleToggleComplete(todo.id, todo.completed)}
+                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                    />
+                    <Link 
+                      href={`/todos/${todo.id}`} 
+                      className={`text-lg font-semibold hover:underline ${todo.completed ? 'line-through text-gray-500' : ''}`}
+                    >
+                      {todo.title}
+                    </Link>
+                  </div>
                   {todo.description && (
-                    <p className="text-sm text-gray-600 mt-1 line-clamp-2">{todo.description}</p>
+                    <p className={`text-sm mt-1 line-clamp-2 ${todo.completed ? 'text-gray-400' : 'text-gray-600'}`}>
+                      {todo.description}
+                    </p>
                   )}
                 </div>
                 <div className="flex items-center gap-2">
@@ -116,5 +162,6 @@ export default function Home({ initialTodos }) {
     </>
   );
 }
+
 
 

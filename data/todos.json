@@ -1,5 +1,21 @@
 [
   {
+    "id": "9rmfs73t",
+    "title": "New Todo",
+    "description": "New one",
+    "completed": false,
+    "createdAt": "2025-08-30T06:34:44.659Z",
+    "updatedAt": "2025-08-30T06:34:44.659Z"
+  },
+  {
+    "id": "0j6c5eol",
+    "title": "Buy grocery",
+    "description": "Potato",
+    "completed": false,
+    "createdAt": "2025-08-30T06:33:04.500Z",
+    "updatedAt": "2025-08-30T06:34:21.142Z"
+  },
+  {
     "id": "welcome1",
     "title": "New task",
     "description": "This is a sample todo. You can view, edit, and delete it.",

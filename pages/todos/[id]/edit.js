@@ -84,9 +84,9 @@ export default function EditTodo() {
       
       setSuccess(true);
       
-      // Wait a moment to show success message, then redirect
+      // Wait a moment to show success message, then redirect to home page
       setTimeout(() => {
-        router.push(`/todos/${todo.id}`);
+        router.push("/");
       }, 1000);
       
     } catch (err) {

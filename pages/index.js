@@ -28,19 +28,31 @@ export default function Home({ initialTodos }) {
       }
     };
 
+    // Also refresh when router events occur (navigation)
+    const handleRouteChange = () => {
+      refreshTodos();
+    };
+
     window.addEventListener('focus', handleFocus);
     document.addEventListener('visibilitychange', handleVisibilityChange);
+    router.events.on('routeChangeComplete', handleRouteChange);
     
     return () => {
       window.removeEventListener('focus', handleFocus);
       document.removeEventListener('visibilitychange', handleVisibilityChange);
+      router.events.off('routeChangeComplete', handleRouteChange);
     };
-  }, []);
+  }, [router]);
 
   // Update local state when initialTodos changes
   useEffect(() => {
     setTodos(initialTodos);
   }, [initialTodos]);
+
+  // Refresh todos on component mount to ensure we have latest data
+  useEffect(() => {
+    refreshTodos();
+  }, []);
 
   // Function to refresh todos
   const refreshTodos = async () => {
@@ -86,21 +98,28 @@ export default function Home({ initialTodos }) {
       return;
     }
     
+    // Optimistically remove from UI first
+    const originalTodos = todos;
+    setTodos(todos.filter(todo => todo.id !== id));
+    
     try {
       const res = await fetch(`/api/todos/${id}`, { method: "DELETE" });
       if (!res.ok) {
         const errorData = await res.json().catch(() => ({}));
         if (res.status === 404) {
-          // Todo was already deleted, remove from local state
-          setTodos(todos.filter(todo => todo.id !== id));
+          // Todo was already deleted, keep it removed from local state
           return;
         }
+        // Revert optimistic update on error
+        setTodos(originalTodos);
         throw new Error(errorData.error || "Failed to delete todo");
       }
-      // Remove from local state
-      setTodos(todos.filter(todo => todo.id !== id));
+      // Success - refresh the list to ensure consistency
+      await refreshTodos();
     } catch (error) {
       console.error("Delete failed:", error);
+      // Revert optimistic update
+      setTodos(originalTodos);
       alert(error.message || "Failed to delete todo");
     }
   }
